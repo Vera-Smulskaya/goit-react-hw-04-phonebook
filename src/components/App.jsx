@@ -1,114 +1,85 @@
-import React, { Component } from 'react';
-import { fetchPhoto } from '../services/api';
-import ImageGallery from './ImageGallery/ImageGallery';
-import Searchbar from './Searchbar/Searchbar';
-import Notiflix from 'notiflix';
-import css from './App.module.css';
-import Button from './Button/Button';
-import Modal from './Modal/Modal';
-import Loader from './Loader/Loader';
+import { Component } from 'react';
+import { nanoid } from 'nanoid';
+import ContactForm from './ContactForm/ContactForm';
+import ContactList from './ContactList/ContactList';
+import Filter from './Filter/Filter';
+import Section from './Section/Section';
+import Title from './Title/Title';
+
+const startContacts = [
+  { id: 'id-1', name: 'Rosie Simpson', number: '321-459-12-56' },
+  { id: 'id-2', name: 'Hermione Kline', number: '234-443-89-12' },
+  { id: 'id-3', name: 'Eden Clements', number: '123-645-17-79' },
+  { id: 'id-4', name: 'Annie Copeland', number: '324-227-91-26' },
+];
+
 export class App extends Component {
   state = {
-    images: [],
-    page: 1,
-    searchImages: '',
-    isLoading: false,
-    showLoadMore: false,
-    showModal: false,
-    largeImageURL: [],
-    imageTags: '',
-    error: null,
-    lastSearchQuery: '',
+    contacts: [],
+    filter: '',
   };
 
+  componentDidMount() {
+    const savedContacts =
+      JSON.parse(localStorage.getItem('contacts')) ?? startContacts;
+    this.setState({ contacts: savedContacts });
+  }
+
   componentDidUpdate(_, prevState) {
-    if (
-      this.state.searchImages !== prevState.searchImages ||
-      this.state.page !== prevState.page
-    ) {
-      this.setState({ isLoading: true });
-      this.fetchImages(this.state.searchImages, this.state.page);
+    if (prevState.contacts !== this.state.contacts) {
+      const stringifiedContacts = JSON.stringify(this.state.contacts);
+      localStorage.setItem('contacts', stringifiedContacts);
     }
   }
 
-  fetchImages = async (query, page) => {
-    try {
-      await fetchPhoto(query, page).then(result => {
-        const images = result.data.hits;
-        const lastImages = result.data.totalHits - 12 * this.state.page;
-
-        if (images.length === 0) {
-          this.setState({ showLoadMore: false });
-          Notiflix.Notify.failure(
-            'Sorry, there are no images. Please try again.'
-          );
-          return;
-        } else {
-          this.setState(prevState => ({
-            images: [...prevState.images, ...images],
-          }));
-        }
-        lastImages > 0
-          ? this.setState({ showLoadMore: true })
-          : this.setState({ showLoadMore: false });
-      });
-    } catch (error) {
-      Notiflix.Notify.info(' Sorry, some error occured.');
-    } finally {
-      this.setState({ isLoading: false });
+  handleAddContact = contactData => {
+    const hasDuplicates = this.state.contacts.some(
+      contact => contact.name.toLowerCase() === contactData.name.toLowerCase()
+    );
+    if (hasDuplicates) {
+      alert(`Contact with name ${contactData.name} already exists`);
+      return;
     }
+
+    const finalContact = {
+      ...contactData,
+      id: nanoid(),
+    };
+
+    this.setState({ contacts: [...this.state.contacts, finalContact] });
   };
 
-  onLoadMore = () => {
+  onFilter = event => {
+    this.setState({ filter: event.target.value });
+  };
+
+  filterContacts = () => {
+    const { contacts, filter } = this.state;
+    return contacts.filter(contact => {
+      return contact.name.toLowerCase().includes(filter.toLowerCase());
+    });
+  };
+
+  deleteContact = contactId => {
     this.setState(prevState => ({
-      page: prevState.page + 1,
+      contacts: prevState.contacts.filter(contact => contact.id !== contactId),
     }));
-  };
-
-  toggleModal = (largeImageURL, imageTags) => {
-    this.setState(state => ({
-      showModal: !state.showModal,
-      largeImageURL: largeImageURL,
-      imageTags: imageTags,
-    }));
-  };
-
-  onSubmit = FormData => {
-    const { query } = FormData;
-
-    if (query !== this.state.lastSearchQuery) {
-      this.setState({
-        searchImages: query,
-        page: 1,
-        images: [],
-        lastSearchQuery: query,
-      });
-    } else {
-      Notiflix.Notify.info(`Sorry! You are already looking for ${query}`);
-    }
   };
 
   render() {
+    const { filter } = this.state;
+    const contacts = filter ? this.filterContacts() : this.state.contacts;
+
     return (
-      <div className={css.app}>
-        <Searchbar onSubmit={this.onSubmit} />
-        {this.state.error !== null && (
-          <p className={css.errorBage}>
-            Sorry, some error occured. Error message: {this.state.error}
-          </p>
-        )}
-        {this.state.isLoading && <Loader />}
-        <ImageGallery images={this.state.images} showModal={this.toggleModal} />
-        {this.state.showLoadMore && (
-          <Button onClick={this.onLoadMore}>Load more</Button>
-        )}
-        {this.state.showModal && (
-          <Modal
-            closeModal={this.toggleModal}
-            alt={this.state.imageTags}
-            image={this.state.largeImageURL}
-          />
-        )}
+      <div>
+        <Section>
+          <Title>Phonebook</Title>
+          <ContactForm handleFormContact={this.handleAddContact} />
+        </Section>
+        <Section>
+          <Filter value={filter} onChange={this.onFilter} />
+          <ContactList contacts={contacts} deleteContact={this.deleteContact} />
+        </Section>
       </div>
     );
   }

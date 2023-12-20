@@ -1,0 +1,15 @@
+.filterContainer {
+    padding: 20px;
+}
+
+
+.filterLabelText {
+    margin-top: 0;
+    margin-bottom: 14px;
+    font-weight: 500;
+    font-size: 18px;
+}
+
+.filterInput {
+    padding: 4px;
+}
